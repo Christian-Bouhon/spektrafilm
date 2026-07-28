@@ -8,11 +8,9 @@ echo "=== 2. Préparation du venv Python dans AppDir ==="
 mkdir -p AppDir/usr
 python3 -m venv --copies AppDir/usr
 
-# COPIE AUTOMATIQUE ET INFAILLIBLE DE LIBPYTHON
-# 1. On demande à Python où se trouve son binaire libpython
+# COPIE AUTOMATIQUE DE LIBPYTHON
 LIBPYTHON_PATH=$(python3 -c "import sysconfig, os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), sysconfig.get_config_var('LDLIBRARY')))")
 
-# 2. Si non trouvé via sysconfig, on recherche la lib liée dynamiquement
 if [ ! -f "$LIBPYTHON_PATH" ]; then
     LIBPYTHON_PATH=$(ldd "$(which python3)" | grep libpython | awk '{print $3}')
 fi
@@ -27,29 +25,29 @@ AppDir/usr/bin/pip install --upgrade pip
 AppDir/usr/bin/pip install --no-cache-dir .
 
 echo "=== 3. Création du script de lancement AppRun ==="
-cat << EOF > AppDir/AppRun
+cat << 'EOF' > AppDir/AppRun
 #!/bin/bash
-HERE="\$(dirname "\$(readlink -f "\${0}")")"
+HERE="$(dirname "$(readlink -f "${0}")")"
 
-# 1. Indiquer à Python la racine de son environnement embarqué
-export PYTHONHOME="\${HERE}/usr"
+# Définition précise de la racine Python pour trouver 'encodings'
+export PYTHONHOME="${HERE}/usr"
 
-# 2. Chemins pour les binaires et bibliothèques C/C++
-export PATH="\${HERE}/usr/bin:\${PATH}"
-export LD_LIBRARY_PATH="\${HERE}/usr/lib:\${LD_LIBRARY_PATH}"
+# Chemins système et bibliothèques
+export PATH="${HERE}/usr/bin:${PATH}"
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
 export QT_QPA_PLATFORM=xcb
 
-# 3. Chemin des modules Python
-PY_VER=\$(ls "\${HERE}/usr/lib" | grep -E '^python3\.' | head -n 1)
-export PYTHONPATH="\${HERE}/usr/lib/\${PY_VER}:\${HERE}/usr/lib/\${PY_VER}/lib-dynload:\${HERE}/usr/lib/\${PY_VER}/site-packages:\${PYTHONPATH}"
+# Détection automatique de la version de Python pour le PYTHONPATH
+PY_DIR=$(ls "${HERE}/usr/lib" | grep -E '^python3\.' | head -n 1)
+export PYTHONPATH="${HERE}/usr/lib/${PY_DIR}:${HERE}/usr/lib/${PY_DIR}/lib-dynload:${HERE}/usr/lib/${PY_DIR}/site-packages:${PYTHONPATH}"
 
-exec "\${HERE}/usr/bin/python3" "\${HERE}/usr/bin/spektrafilm" "\$@"
+exec "${HERE}/usr/bin/python3" "${HERE}/usr/bin/spektrafilm" "$@"
 EOF
 
 chmod +x AppDir/AppRun
 
 echo "=== 4. Métadonnées (.desktop & icône) ==="
-cat << EOF > AppDir/spektrafilm.desktop
+cat << 'EOF' > AppDir/spektrafilm.desktop
 [Desktop Entry]
 Name=Spektrafilm
 Comment=Film simulation and LUT generator
