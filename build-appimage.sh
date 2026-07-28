@@ -2,49 +2,42 @@
 set -e
 
 echo "=== 1. Nettoyage des anciens builds ==="
-rm -rf AppDir Spektrafilm-x86_64.AppImage
+rm -rf AppDir Spektrafilm-x86_64.AppImage python_standalone
 
-echo "=== 2. Préparation du venv Python dans AppDir ==="
+echo "=== 2. Téléchargement d'un Python autonome (Standalone Runtime) ==="
+# On télécharge un Python complètement portable et autonome
 mkdir -p AppDir/usr
-python3 -m venv --copies AppDir/usr
+PY_BUILD="20241016"
+PY_VER="3.12.7"
+wget -q "https://github.com/indygreg/python-build-standalone/releases/download/${PY_BUILD}/cpython-${PY_VER}+${PY_BUILD}-x86_64-unknown-linux-gnu-install_only.tar.gz" -O python_standalone.tar.gz
 
-# Copie de la bibliothèque système (libpython)
-LIBPYTHON_PATH=$(python3 -c "import sysconfig, os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), sysconfig.get_config_var('LDLIBRARY')))")
-if [ ! -f "$LIBPYTHON_PATH" ]; then
-    LIBPYTHON_PATH=$(ldd "$(which python3)" | grep libpython | awk '{print $3}')
-fi
+mkdir -p python_standalone
+tar -xzf python_standalone.tar.gz -C python_standalone
 
-mkdir -p AppDir/usr/lib
-cp -L "$LIBPYTHON_PATH"* AppDir/usr/lib/ 2>/dev/null || true
+# Copie de l'environnement Python propre dans AppDir
+cp -r python_standalone/python/* AppDir/usr/
 
-# Copie intégrale de la bibliothèque standard système dans le venv
-PY_SYS_VER=$(python3 -c "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}')")
-cp -rL "/usr/lib/${PY_SYS_VER}"/* AppDir/usr/lib/${PY_SYS_VER}/ 2>/dev/null || true
+echo "=== 3. Installation des dépendances du projet ==="
+# On utilise le Python autonome pour installer le projet et ses dépendances
+AppDir/usr/bin/python3 -m pip install --upgrade pip
+AppDir/usr/bin/python3 -m pip install --no-cache-dir .
 
-AppDir/usr/bin/pip install --upgrade pip
-AppDir/usr/bin/pip install --no-cache-dir .
-
-echo "=== 3. Création du script de lancement AppRun ==="
+echo "=== 4. Création du script de lancement AppRun ==="
 cat << 'EOF' > AppDir/AppRun
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-# Nettoyage de l'environnement Python système
-unset PYTHONHOME
-unset PYTHONPATH
-
-# Chemins système de l'AppImage
 export PATH="${HERE}/usr/bin:${PATH}"
 export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
 export QT_QPA_PLATFORM=xcb
 
-# CORRECTION : On lance le binaire python3 embarqué et on lui passe le script de lancement en argument
+# Exécution de l'application via le Python autonome embarqué
 exec "${HERE}/usr/bin/python3" "${HERE}/usr/bin/spektrafilm" "$@"
 EOF
 
 chmod +x AppDir/AppRun
 
-echo "=== 4. Métadonnées (.desktop & icône) ==="
+echo "=== 5. Métadonnées (.desktop & icône) ==="
 cat << 'EOF' > AppDir/spektrafilm.desktop
 [Desktop Entry]
 Name=Spektrafilm
@@ -57,7 +50,7 @@ EOF
 
 touch AppDir/spektrafilm.png
 
-echo "=== 5. Génération AppImage ==="
+echo "=== 6. Génération AppImage ==="
 if [ ! -f "appimagetool-x86_64.AppImage" ]; then
     wget https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool-x86_64.AppImage
     chmod +x appimagetool-x86_64.AppImage
