@@ -8,10 +8,18 @@ echo "=== 2. Préparation du venv Python dans AppDir ==="
 mkdir -p AppDir/usr
 python3 -m venv --copies AppDir/usr
 
-# COPIE CRUCIALE : On embarque la libpython partagée du système de build dans l'AppImage
+# COPIE AUTOMATIQUE ET INFAILLIBLE DE LIBPYTHON
+# 1. On demande à Python où se trouve son binaire libpython
+LIBPYTHON_PATH=$(python3 -c "import sysconfig, os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), sysconfig.get_config_var('LDLIBRARY')))")
+
+# 2. Si non trouvé via sysconfig, on recherche la lib liée dynamiquement
+if [ ! -f "$LIBPYTHON_PATH" ]; then
+    LIBPYTHON_PATH=$(ldd $(which python3) | grep libpython | awk '{print $3}')
+fi
+
+echo "Copie de la bibliothèque système : $LIBPYTHON_PATH"
 mkdir -p AppDir/usr/lib
-cp /usr/lib/x86_64-linux-gnu/libpython3*.so* AppDir/usr/lib/ 2>/dev/null || true
-cp /usr/lib/libpython3*.so* AppDir/usr/lib/ 2>/dev/null || true
+cp -L "$LIBPYTHON_PATH"* AppDir/usr/lib/
 
 AppDir/usr/bin/pip install --upgrade pip
 
@@ -23,7 +31,7 @@ cat << 'EOF' > AppDir/AppRun
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-# On force Linux à chercher les bibliothèques embarquées (libpython...) en PREMIER
+# On force la recherche des bibliothèques embarquées en PREMIER
 export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
 export PATH="${HERE}/usr/bin:${PATH}"
 export QT_QPA_PLATFORM=xcb
