@@ -14,7 +14,7 @@ LIBPYTHON_PATH=$(python3 -c "import sysconfig, os; print(os.path.join(sysconfig.
 
 # 2. Si non trouvé via sysconfig, on recherche la lib liée dynamiquement
 if [ ! -f "$LIBPYTHON_PATH" ]; then
-    LIBPYTHON_PATH=$(ldd $(which python3) | grep libpython | awk '{print $3}')
+    LIBPYTHON_PATH=$(ldd "$(which python3)" | grep libpython | awk '{print $3}')
 fi
 
 echo "Copie de la bibliothèque système : $LIBPYTHON_PATH"
@@ -27,25 +27,29 @@ AppDir/usr/bin/pip install --upgrade pip
 AppDir/usr/bin/pip install --no-cache-dir .
 
 echo "=== 3. Création du script de lancement AppRun ==="
-cat << 'EOF' > AppDir/AppRun
+cat << EOF > AppDir/AppRun
 #!/bin/bash
-HERE="$(dirname "$(readlink -f "${0}")")"
+HERE="\$(dirname "\$(readlink -f "\${0}")")"
 
-# On force la recherche des bibliothèques embarquées en PREMIER
-export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
-export PATH="${HERE}/usr/bin:${PATH}"
+# 1. Indiquer à Python la racine de son environnement embarqué
+export PYTHONHOME="\${HERE}/usr"
+
+# 2. Chemins pour les binaires et bibliothèques C/C++
+export PATH="\${HERE}/usr/bin:\${PATH}"
+export LD_LIBRARY_PATH="\${HERE}/usr/lib:\${LD_LIBRARY_PATH}"
 export QT_QPA_PLATFORM=xcb
 
-PY_VER=$(ls "${HERE}/usr/lib" | grep -E '^python3\.' | head -n 1)
-export PYTHONPATH="${HERE}/usr/lib/${PY_VER}/site-packages:${PYTHONPATH}"
+# 3. Chemin des modules Python
+PY_VER=\$(ls "\${HERE}/usr/lib" | grep -E '^python3\.' | head -n 1)
+export PYTHONPATH="\${HERE}/usr/lib/\${PY_VER}:\${HERE}/usr/lib/\${PY_VER}/lib-dynload:\${HERE}/usr/lib/\${PY_VER}/site-packages:\${PYTHONPATH}"
 
-exec "${HERE}/usr/bin/python3" "${HERE}/usr/bin/spektrafilm" "$@"
+exec "\${HERE}/usr/bin/python3" "\${HERE}/usr/bin/spektrafilm" "\$@"
 EOF
 
 chmod +x AppDir/AppRun
 
 echo "=== 4. Métadonnées (.desktop & icône) ==="
-cat << 'EOF' > AppDir/spektrafilm.desktop
+cat << EOF > AppDir/spektrafilm.desktop
 [Desktop Entry]
 Name=Spektrafilm
 Comment=Film simulation and LUT generator
