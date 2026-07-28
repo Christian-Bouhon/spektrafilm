@@ -25,11 +25,11 @@ jobs:
         with:
           python-version: '3.13'
 
-      # Installation des dépendances système requises par appimagetool
+      # Installation des dépendances système requises par appimagetool ET libxcb-cursor0 pour Qt6
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libfuse2 file wget
+          sudo apt-get install -y libfuse2 file wget libxcb-cursor0
 
       - name: Build AppImage
         run: |
