@@ -17,7 +17,7 @@ fi
 mkdir -p AppDir/usr/lib
 cp -L "$LIBPYTHON_PATH"* AppDir/usr/lib/ 2>/dev/null || true
 
-# Copie intégrale de la bibliothèque standard système dans le venv (pour remplacer les symlinks brisés)
+# Copie intégrale de la bibliothèque standard système dans le venv
 PY_SYS_VER=$(python3 -c "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}')")
 cp -rL "/usr/lib/${PY_SYS_VER}"/* AppDir/usr/lib/${PY_SYS_VER}/ 2>/dev/null || true
 
@@ -29,7 +29,7 @@ cat << 'EOF' > AppDir/AppRun
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-# On nettoie les variables qui pourraient perturber l'isolation de Python
+# Nettoyage de l'environnement Python système
 unset PYTHONHOME
 unset PYTHONPATH
 
@@ -38,8 +38,8 @@ export PATH="${HERE}/usr/bin:${PATH}"
 export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
 export QT_QPA_PLATFORM=xcb
 
-# Lancement direct de l'exécutable généré par pip dans le venv
-exec "${HERE}/usr/bin/spektrafilm" "$@"
+# CORRECTION : On lance le binaire python3 embarqué et on lui passe le script de lancement en argument
+exec "${HERE}/usr/bin/python3" "${HERE}/usr/bin/spektrafilm" "$@"
 EOF
 
 chmod +x AppDir/AppRun
