@@ -8,16 +8,19 @@ echo "=== 2. Préparation du venv Python dans AppDir ==="
 mkdir -p AppDir/usr
 python3 -m venv --copies AppDir/usr
 
-# COPIE AUTOMATIQUE DE LIBPYTHON
+# COPIE DE LIBPYTHON
 LIBPYTHON_PATH=$(python3 -c "import sysconfig, os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), sysconfig.get_config_var('LDLIBRARY')))")
-
 if [ ! -f "$LIBPYTHON_PATH" ]; then
     LIBPYTHON_PATH=$(ldd "$(which python3)" | grep libpython | awk '{print $3}')
 fi
 
-echo "Copie de la bibliothèque système : $LIBPYTHON_PATH"
 mkdir -p AppDir/usr/lib
 cp -L "$LIBPYTHON_PATH"* AppDir/usr/lib/
+
+# CORRECTION CRUCIALE : Copie complète de la bibliothèque standard (encodings, etc.)
+PY_SYS_VER=$(python3 -c "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}')")
+echo "Copie de la bibliothèque standard pour $PY_SYS_VER..."
+cp -rL "/usr/lib/${PY_SYS_VER}" AppDir/usr/lib/ 2>/dev/null || true
 
 AppDir/usr/bin/pip install --upgrade pip
 
@@ -29,15 +32,11 @@ cat << 'EOF' > AppDir/AppRun
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-# Définition précise de la racine Python pour trouver 'encodings'
 export PYTHONHOME="${HERE}/usr"
-
-# Chemins système et bibliothèques
 export PATH="${HERE}/usr/bin:${PATH}"
 export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
 export QT_QPA_PLATFORM=xcb
 
-# Détection automatique de la version de Python pour le PYTHONPATH
 PY_DIR=$(ls "${HERE}/usr/lib" | grep -E '^python3\.' | head -n 1)
 export PYTHONPATH="${HERE}/usr/lib/${PY_DIR}:${HERE}/usr/lib/${PY_DIR}/lib-dynload:${HERE}/usr/lib/${PY_DIR}/site-packages:${PYTHONPATH}"
 
