@@ -4,11 +4,10 @@ set -e
 echo "=== 1. Nettoyage des anciens builds ==="
 rm -rf AppDir Spektrafilm-x86_64.AppImage python_standalone
 
-echo "=== 2. Téléchargement d'un Python autonome (Standalone Runtime) ==="
-# On télécharge un Python complètement portable et autonome
+echo "=== 2. Téléchargement d'un Python autonome 3.13 (Standalone Runtime) ==="
 mkdir -p AppDir/usr
-PY_BUILD="20241016"
-PY_VER="3.12.7"
+PY_BUILD="20250115"
+PY_VER="3.13.1"
 wget -q "https://github.com/indygreg/python-build-standalone/releases/download/${PY_BUILD}/cpython-${PY_VER}+${PY_BUILD}-x86_64-unknown-linux-gnu-install_only.tar.gz" -O python_standalone.tar.gz
 
 mkdir -p python_standalone
@@ -18,7 +17,6 @@ tar -xzf python_standalone.tar.gz -C python_standalone
 cp -r python_standalone/python/* AppDir/usr/
 
 echo "=== 3. Installation des dépendances du projet ==="
-# On utilise le Python autonome pour installer le projet et ses dépendances
 AppDir/usr/bin/python3 -m pip install --upgrade pip
 AppDir/usr/bin/python3 -m pip install --no-cache-dir .
 
