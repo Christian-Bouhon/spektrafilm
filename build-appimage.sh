@@ -7,9 +7,15 @@ rm -rf AppDir Spektrafilm-x86_64.AppImage
 echo "=== 2. Préparation du venv Python dans AppDir ==="
 mkdir -p AppDir/usr
 python3 -m venv --copies AppDir/usr
+
+# COPIE CRUCIALE : On embarque la libpython partagée du système de build dans l'AppImage
+mkdir -p AppDir/usr/lib
+cp /usr/lib/x86_64-linux-gnu/libpython3*.so* AppDir/usr/lib/ 2>/dev/null || true
+cp /usr/lib/libpython3*.so* AppDir/usr/lib/ 2>/dev/null || true
+
 AppDir/usr/bin/pip install --upgrade pip
 
-# Installation du dépôt courant dans l'AppDir
+# Installation du dépôt courant
 AppDir/usr/bin/pip install --no-cache-dir .
 
 echo "=== 3. Création du script de lancement AppRun ==="
@@ -17,14 +23,14 @@ cat << 'EOF' > AppDir/AppRun
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 
-export PATH="${HERE}/usr/bin:${PATH}"
+# On force Linux à chercher les bibliothèques embarquées (libpython...) en PREMIER
 export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
+export PATH="${HERE}/usr/bin:${PATH}"
 export QT_QPA_PLATFORM=xcb
 
 PY_VER=$(ls "${HERE}/usr/lib" | grep -E '^python3\.' | head -n 1)
 export PYTHONPATH="${HERE}/usr/lib/${PY_VER}/site-packages:${PYTHONPATH}"
 
-# On exécute directement le script généré par pip via le python embarqué
 exec "${HERE}/usr/bin/python3" "${HERE}/usr/bin/spektrafilm" "$@"
 EOF
 
